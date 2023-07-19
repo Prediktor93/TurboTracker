@@ -6,6 +6,8 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "freertos/task.h"
+
 #define    ACCEL_ADDRESS              0x18
 #define    GYRO_ADDRESS         	  0x68
 #define    MAG_ADDRESS                0x10
@@ -59,49 +61,25 @@ int Imu::Init(void *connection){
 	/*
 	 * Configurar acelerometro TODO
 	 */
-		//Data_high_bandwith
-		//	- 0 bandwidth sin filtro
-		//	- 1 bandwidth con filtro
-		//Para establecer bandwidth en modo con filtro, setear reg 0x10 (pag 27)
-		i2c->writeByte(ACCEL_ADDRESS, 0x10, 0b01011); // Filtro a 62.5 Hz
-		i2c->writeByte(ACCEL_ADDRESS, 0x13, 0x0);
+	//Data_high_bandwith
+	//	- 0 bandwidth sin filtro
+	//	- 1 bandwidth con filtro
+	//Para establecer bandwidth en modo con filtro, setear reg 0x10 (pag 27)
+	i2c->writeByte(ACCEL_ADDRESS, 0x10, 0b01011); // Filtro a 62.5 Hz
+	i2c->writeByte(ACCEL_ADDRESS, 0x13, 0x0);     // Filtered data
 
-		//Acceleration measurement address (pag 28)
-		//	- +-2g, 	0.98mg/LSB 0x3
-		//	- +-4g, 	1.95mg/LSB 0x5
-		i2c->writeByte(ACCEL_ADDRESS, 0x0F, 0x05);
+	//Acceleration measurement address (pag 28)
+	//	- +-2g, 	0.98mg/LSB 0x3
+	//	- +-4g, 	1.95mg/LSB 0x5
+	i2c->writeByte(ACCEL_ADDRESS, 0x0F, 0x05);    // +-4g
 
-		//Activamos el low compensation del aceletometro
-		//i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x07);
-		/*
-		//Fast compensation en cada eje
-		uint8_t compensation = 0;
-		while(!(compensation >> 4 & 0b1)){
-			i2c->readByte(ACCEL_ADDRESS, 0x36, &compensation);
-		}
-		ESP_LOGI("[IMU]", "Trimado X\n");
-		i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x27);
+	CalibrateAccel();
 
-		compensation = 0;
-		while(!(compensation >> 4 & 0b1)){
-			i2c->readByte(ACCEL_ADDRESS, 0x36, &compensation);
-		}
-		ESP_LOGI("[IMU]", "Trimado Y\n");
-		i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x47);
+	/*
+	 * Configurar Gyro
+	 */
+	i2c->writeByte(GYRO_ADDRESS, 0x10, 0b0100); //200Hz
 
-		compensation = 0;
-		while(!(compensation >> 4 & 0b1)){
-			i2c->readByte(ACCEL_ADDRESS, 0x36, &compensation);
-		}
-		ESP_LOGI("[IMU]", "Trimado Z\n");
-		i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x67);
-
-		while(!(compensation >> 4 & 0b1)){
-			i2c->readByte(ACCEL_ADDRESS, 0x36, &compensation);
-		}*/
-
-		i2c->writeByte(GYRO_ADDRESS, 0x10, 0b0100, 0); //200Hz
-		i2c->writeByte(ACCEL_ADDRESS, 0x13, 0x0);
 	// Configurar magnetometro TODO
 	//i2c0.writeByte(MAG_ADDRESS, 0x37, 0x02);
 	//i2c0.writeByte(MAG_ADDRESS, 0x0A, 0x01);
@@ -116,12 +94,8 @@ int Imu::Read(void *readdata)
 	imu_output *output_data;
 	output_data = (imu_output*) readdata;
 
-
-	/*uint8_t Buf[14];
-	i2c->readBytes(ACCEL_ADDRESS, 0x3B, 14, Buf);
-
 	// Temperatura
-	uint8_t temperature = 0;
+	/*uint8_t temperature = 0;
 	i2c->readByte(ACCEL_ADDRESS, 0x08, &temperature);
 	int8_t temp_ = (int8_t)temperature;
 	float temp = 23 + (temp_*0.5);*/
@@ -149,11 +123,6 @@ int Imu::Read(void *readdata)
     w_x = gyro_x * 3.14159265358979323846 / 180.0;
     w_y = gyro_y * 3.14159265358979323846 / 180.0;
     w_z = gyro_z * 3.14159265358979323846 / 180.0;
-
-	// Intento de conversión de -360 a 360 grados que aun no tengo muy claro
-	//float gyro_x_360 = (gyro_x * 360) / 2000;
-	//float gyro_y_360 = (gyro_y * 360) / 2000;
-	//float gyro_z_360 = (gyro_z * 360) / 2000;
 
 	output_data->gyro[0] = gyro_x;
 	output_data->gyro[1] = gyro_y;
@@ -186,15 +155,15 @@ int Imu::Read(void *readdata)
 		acc[2] -= 4096;
 	}
 
-	a_x = (int16_t)acc[0] * 1.953125 * 9.81 / 1000.0; // - accel_x_offset; en m/s
-	a_y = (int16_t)acc[1] * 1.953125 * 9.81 / 1000.0; // - accel_y_offset; en m/s
-	a_z = (int16_t)acc[2] * 1.953125 * 9.81 / 1000.0; // - accel_z_offset; en m/s
+	a_x = (int16_t)acc[0] * 1.95 / 100.0 + accel_x_offset; 
+	a_y = (int16_t)acc[1] * 1.95 / 100.0 + accel_y_offset;
+	a_z = (int16_t)acc[2] * 1.95 / 100.0 + accel_z_offset; 
 
 	output_data->accel[0] = a_x;
 	output_data->accel[1] = a_y;
 	output_data->accel[2] = a_z;
 
-	output_data->totalAccel = sqrt( a_x*a_x + a_y*a_y + a_z*a_z) / 9.81;
+	output_data->totalAccel = sqrt( a_x*a_x + a_y*a_y + a_z*a_z);
 
 	/* Speed */
 	/*uint64_t time_now = esp_timer_get_time(); // En us
@@ -290,142 +259,50 @@ void Imu::filterUpdate()
  */
 
 void Imu::CalibrateAccel(){
-	printf(LOG_COLOR_W ">>  Calibrating accelerometer.... %s", LOG_RESET_COLOR "\n");
-	printf(LOG_COLOR_W "Please, keep it still and straight %s", LOG_RESET_COLOR "\n");
+	
+		//Fast compensation
+	i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x80); // set all accel offset compensation registers to zero
+	i2c->writeByte(ACCEL_ADDRESS, 0x37, 0x00);  // set offset targets to 0, 0, and 0 g for x, y, z axes
 
-	accel_x_offset = 0;
-	accel_y_offset = 0;
-	accel_z_offset = 0;
-	int iterations = 500; //This can be configured a gusto del consumidor
+	uint8_t offsetX, offsetY, offsetZ;
+	uint8_t Reg_036 = 0;
 
-	for(unsigned int i = 1; i<= iterations; i++){
-		uint8_t accel_x_lsb = 0;
-		uint8_t accel_y_lsb = 0;
-		uint8_t accel_z_lsb = 0;
+	//Calibrate X
+	i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x20); //Start trigger
+	vTaskDelay(pdMS_TO_TICKS(10));
 
-		uint8_t accel_x_msb = 0;
-		uint8_t accel_y_msb = 0;
-		uint8_t accel_z_msb = 0;
-
-		i2c->readByte(ACCEL_ADDRESS, 0x02, &accel_x_lsb);
-		i2c->readByte(ACCEL_ADDRESS, 0x04, &accel_y_lsb);
-		i2c->readByte(ACCEL_ADDRESS, 0x06, &accel_z_lsb);
-
-		i2c->readByte(ACCEL_ADDRESS, 0x03, &accel_x_msb);
-		i2c->readByte(ACCEL_ADDRESS, 0x05, &accel_y_msb);
-		i2c->readByte(ACCEL_ADDRESS, 0x07, &accel_z_msb);
-
-		int16_t accel_x_ = (accel_x_msb << 4) | (accel_x_lsb >> 4);
-		int16_t accel_y_ = (accel_y_msb << 4) | (accel_y_lsb >> 4);
-		int16_t accel_z_ = (accel_z_msb << 4) | (accel_z_lsb >> 4);
-
-		if (accel_x_ > 2047) {
-			accel_x_ -= 4096;
-		}
-
-		if (accel_y_ > 2047) {
-			accel_y_ -= 4096;
-		}
-
-		if (accel_z_ > 2047) {
-			accel_z_ -= 4096;
-		}
-
-		float accel_x = accel_x_ * 0.98;
-		float accel_y = accel_y_ * 0.98;
-		float accel_z = accel_z_ * 0.98;
-
-		accel_x_offset += accel_x;
-		accel_y_offset += accel_y;
-		accel_z_offset += accel_z;
-
-		if(i%50 == 0)
-			printf(LOG_COLOR_W "\t (%d/%d) %s",i,iterations, LOG_RESET_COLOR "\n");
-		usleep(10000);
+	i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+	while( !(Reg_036 & 0x10) ){
+		i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 
-	accel_x_offset /= iterations;
-	accel_y_offset /= iterations;
-	accel_z_offset /= iterations;
-}
+	//Calibrate Y
+	i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x40); //Start trigger
+	vTaskDelay(pdMS_TO_TICKS(10));
 
-
-/*
- * TODO No parece hacer falta una calibracion?
- */
-/*
- * Hace una media al inicio con los valores tomados durante 5 segundos para tomar
- * como punto de referencia a la hora de medir el resto de variables mas adelante,
- * y asi poder saber la posicion relativa
- */
-void Imu::CalibrateGyro(){
-	printf(LOG_COLOR_W ">>  Calibrating gyroscope.... %s", LOG_RESET_COLOR "\n");
-	printf(LOG_COLOR_W "Please, keep it still and straight %s", LOG_RESET_COLOR "\n");
-
-	gyro_x_offset = 0;
-	gyro_y_offset = 0;
-	gyro_z_offset = 0;
-	int iterations = 500; //This can be configured a gusto del consumidor
-
-	for(unsigned int i = 1; i<= iterations; i++){
-		uint8_t gyro_x_lsb = 0;
-		uint8_t gyro_y_lsb = 0;
-		uint8_t gyro_z_lsb = 0;
-
-		uint8_t gyro_x_msb = 0;
-		uint8_t gyro_y_msb = 0;
-		uint8_t gyro_z_msb = 0;
-
-		i2c->readByte(GYRO_ADDRESS, 0x02, &gyro_x_lsb);
-		i2c->readByte(GYRO_ADDRESS, 0x04, &gyro_y_lsb);
-		i2c->readByte(GYRO_ADDRESS, 0x06, &gyro_z_lsb);
-
-		i2c->readByte(GYRO_ADDRESS, 0x03, &gyro_x_msb);
-		i2c->readByte(GYRO_ADDRESS, 0x05, &gyro_y_msb);
-		i2c->readByte(GYRO_ADDRESS, 0x07, &gyro_z_msb);
-
-		int16_t gyro_x_ = (gyro_x_msb << 8) | gyro_x_lsb;
-		int16_t gyro_y_ = (gyro_y_msb << 8) | gyro_y_lsb;
-		int16_t gyro_z_ = (gyro_z_msb << 8) | gyro_z_lsb;
-
-		float gyro_x = (gyro_x_ * 2000) / 32767;
-		float gyro_y = (gyro_y_ * 2000) / 32767;
-		float gyro_z = (gyro_z_ * 2000) / 32767;
-
-		gyro_x_offset += gyro_x;
-		gyro_y_offset += gyro_y;
-		gyro_z_offset += gyro_z;
-
-		if(i%50 == 0)
-			printf(LOG_COLOR_W "\t (%d/%d) %s",i,iterations, LOG_RESET_COLOR "\n");
-		usleep(10000);
+	i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+	while( !(Reg_036 & 0x10) ){
+		i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+		vTaskDelay(pdMS_TO_TICKS(10));
 	}
 
-	gyro_x_offset /= iterations;
-	gyro_y_offset /= iterations;
-	gyro_z_offset /= iterations;
-}
+	//Calibrate Z
+	i2c->writeByte(ACCEL_ADDRESS, 0x36, 0x60); //Start trigger
+	vTaskDelay(pdMS_TO_TICKS(10));
 
-int Imu::Config(int cmd, int arg){
-	return 0;
-}
+	i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+	while( !(Reg_036 & 0x10) ){
+		i2c->readByte(ACCEL_ADDRESS, 0x36, &Reg_036);
+		vTaskDelay(pdMS_TO_TICKS(10));
+	}
 
+	i2c->readByte(ACCEL_ADDRESS, 0x38, &offsetX);
+	i2c->readByte(ACCEL_ADDRESS, 0x39, &offsetY);
+	i2c->readByte(ACCEL_ADDRESS, 0x3A, &offsetZ);
 
+	accel_x_offset =  (int8_t)offsetX / 12.8;
+	accel_y_offset =  (int8_t)offsetY / 12.8;
+	accel_z_offset =  (int8_t)offsetZ / 12.8;
 
-//TODO da error al ser estatica y llamar al i2c
-int8_t Imu::ifaceRead(uint8_t dev_id, uint8_t reg_addr, uint8_t *read_data, uint16_t len){
-	//return i2c->readBytes(dev_id, reg_addr, len, read_data);
-	return 0;
-}
-
-int8_t Imu::ifaceWrite(uint8_t dev_id, uint8_t reg_addr, uint8_t *read_data, uint16_t len){
-	//return i2c->writeBytes(dev_id, reg_addr, len, read_data);
-	return 0;
-}
-
-
-
-int Imu::Close(){
-	i2c->close();
-	return ESP_OK;
 }

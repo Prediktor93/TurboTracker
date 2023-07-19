@@ -44,6 +44,10 @@ void Error()
 
 void Init()
 {
+
+    //TODO: hacer un scan al inicio, ver que hay conectado y poner los devices a available segun eso
+
+
     printf("Init\n");
     	//ESP_ERROR_CHECK( i2c0.begin(GPIO_NUM_21, GPIO_NUM_22, (gpio_pullup_t)0x1, (gpio_pullup_t)0x1, 400000));
     ESP_ERROR_CHECK( i2c0.begin(SDA_PIN, SCL_PIN, I2C_MASTER_FREQ_HZ));
@@ -81,12 +85,15 @@ void app_main(void)
                 imudata.accel[1],
                 imudata.accel[2]);*/
 
-        printf("%.5f     %.5f     %.5f\n",
+        /*printf("%.5f     %.5f     %.5f\n",
                 imudata.pitch,  //[-1.5,1.5] 1.55 vertical arriba, -1.55 vertical abajo
                 imudata.yaw,    //[-3,3]     3 y -3 mirando atras, izda +, dcha -
-                imudata.roll);  //[-3,3]     3 y -3 boca abajo   , izda +, dcha -
+                imudata.roll);  //[-3,3]     3 y -3 boca abajo   , izda +, dcha -*/
 
-        screen.PrintImuGyro(imudata.pitch, imudata.roll);
+        printf("%.5f\n", imudata.totalAccel);
+
+        //screen.PrintImuGyro(imudata.pitch, imudata.roll);
+        screen.PrintImuAccel(imudata.accel[0], imudata.accel[1]);
         
         vTaskDelay(pdMS_TO_TICKS(10));
 

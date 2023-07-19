@@ -19,9 +19,9 @@ struct imu_output{
 	float accel[3];
 	float mag[3];
 	//Processed
-	double pitch; 			//[rad]
-	double yaw; 			//[rad]
-	double roll; 			//[rad]
+	double pitch; 			//[rad] [-1.5,1.5] 1.55 vertical arriba, -1.55 vertical abajo
+	double yaw; 			//[rad] [-3,3]     3 y -3 mirando atras, izda +, dcha -
+	double roll; 			//[rad] [-3,3]     3 y -3 boca abajo   , izda +, dcha
 	float speed;			//[m/s]
 	uint32_t profundidad; 	//[cm]
     float totalAccel;
@@ -30,9 +30,6 @@ struct imu_output{
 
 class Imu {
 private:
-	float gyro_x_offset;
-	float gyro_y_offset;
-	float gyro_z_offset;
 
 	float accel_x_offset;
 	float accel_y_offset;
@@ -71,21 +68,10 @@ public:
      **/
     int Read(void *readdata);
 
-    /**
-     * Configure the 'cmd' with the value 'arg'
-     **/
-    int Config(int cmd, int arg);
 
-    
     void filterUpdate();
-    void CalibrateGyro();
     void CalibrateAccel();
 
-    static int8_t ifaceRead(uint8_t dev_id, uint8_t reg_addr, uint8_t *read_data, uint16_t len);
-    static int8_t ifaceWrite(uint8_t dev_id, uint8_t reg_addr, uint8_t *read_data, uint16_t len);
-    static void ifaceWaitms(uint32_t ms){ usleep(ms*1000); };
-
-    int Close();
 };
 
 #endif /* __IMU_H__ */

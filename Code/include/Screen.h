@@ -9,7 +9,8 @@ public:
 
     void Init();
     void Test();
-    void PrintImuGyro(float pitch, float roll);
+    void PrintImuGyro (float pitch, float roll);
+    void PrintImuAccel(float acX, float acY);
 
 private:
 

@@ -30,46 +30,70 @@ void Screen::Init()
 
 void Screen::PrintImuGyro(float pitch, float roll)
 {
-	char lineChar[16] = "               ";
-	char emptylineChar[16] = "               ";
-	static int lastPos = 0;
-	//ssd1306_clear_screen(&dev, false);
+	char lineChar[17] = "                ";
+	char emptylineChar[17] = "                ";
+	static int pos_last = 0;
 
 	//NewValue = (((OldValue - OldMin) * (NewMax - NewMin)) / (OldMax - OldMin)) + NewMin
-
+	
 	//Acotar valores a la mitad
 	if(pitch > 1.55/2)  pitch = 1.55/2;
 	if(pitch < -1.55/2) pitch = -1.55/2;
 	if(roll > 1.55/2)   roll = 1.55/2;
 	if(roll < -1.55/2)  roll = -1.55/2;
-
+	
 	//Pitch
-		// [-1.55, 1.55] - [0-15]
+		// [-1.55, 1.55] - [0-16]
 		// (((-pitch + 1.55) * (15 - 0)) / (1.55+1.55)) + 0
 	//int pos_char = (( (-pitch + 1.55) * 15) / 3.1); //Sin acotar
-	int pos_char = (( (-pitch + 1.55/2) * 15) / 1.55); //Acotado
+	int pos_char = (( (-pitch + 1.55/2) * 16) / 1.55); //Acotado
 	lineChar[pos_char] = 'o';
-
+	
 	//Roll
-		// [-3, 3] - [0-7]
+		// [-3, 3] - [1-7] (acotado a [-1.55, 1.55])
 		// (((-roll + 3) * (7 - 0)) / (3+3)) + 0
 	//int pos_line = (( (-roll + 3) * 7) / 6); //Sin acotar
-	int pos_line = (( (-roll + 1.55/2) * 7) / 1.55); //Acotado
+	int pos_line = (( (-roll + 1.55/2) * 8) / 1.55); //Acotado
 
 
-	//Poner a blanco el resto de lineas
-	/*for(int i = 0; i<8; i++){
-		if(pos_line == i) ssd1306_display_text(&dev, i, lineChar, strlen(lineChar), false);
-		else              ssd1306_display_text(&dev, i, emptylineChar, strlen(emptylineChar), false);
-	}*/
+	if (pos_line < 0)  pos_line = 0;
+	if (pos_line > 7)  pos_line = 7;
+	if (pos_char < 0)  pos_char = 0;
+	if (pos_char > 16) pos_char = 16;
 
-	//Borra la linea anterior
 	ssd1306_display_text(&dev, pos_line, lineChar, strlen(lineChar), false);
-	if(lastPos /= pos_line) ssd1306_display_text(&dev, pos_line, emptylineChar, strlen(emptylineChar), false);
+	//Borra la linea anterior
+	if(pos_last != pos_line) ssd1306_display_text(&dev, pos_last, emptylineChar, strlen(emptylineChar), false);
 
-	//TODO - lo de arriba va regular
-	//TODO - Hacerlo para el acelerometro
-	lastPos = pos_line;
+	pos_last = pos_line;
+}
+
+void Screen::PrintImuAccel(float acX, float acY)
+{
+	char lineChar[17] = "                ";
+	char emptylineChar[17] = "                ";
+	static int pos_last = 0;
+
+	//NewValue = (((OldValue - OldMin) * (NewMax - NewMin)) / (OldMax - OldMin)) + NewMin
+
+	//X axis [-10, 10] - [0-16]
+	int pos_char = (( (acX + 10) * 16) / 20);
+	lineChar[pos_char] = 'o';
+	
+	//Y axis [-10, 10] - [0-16]
+	int pos_line = (( (-acY + 10) * 8) / 20);
+
+
+	if (pos_line < 0)  pos_line = 0;
+	if (pos_line > 7)  pos_line = 7;
+	if (pos_char < 0)  pos_char = 0;
+	if (pos_char > 16) pos_char = 16;
+
+	ssd1306_display_text(&dev, pos_line, lineChar, strlen(lineChar), false);
+	//Borra la linea anterior
+	if(pos_last != pos_line) ssd1306_display_text(&dev, pos_last, emptylineChar, strlen(emptylineChar), false);
+
+	pos_last = pos_line;
 }
 
 void Screen::Test()
