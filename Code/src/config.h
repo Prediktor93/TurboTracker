@@ -9,3 +9,6 @@
 #define MOSI_PIN GPIO_NUM_23
 #define SCK_PIN  GPIO_NUM_18
 #define CS_PIN   GPIO_NUM_5
+
+//Button
+#define BUTTON_1_PIN GPIO_NUM_16
