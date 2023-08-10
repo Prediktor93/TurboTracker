@@ -12,3 +12,11 @@
 
 //Button
 #define BUTTON_1_PIN GPIO_NUM_16
+
+//Motors
+#define MOTOR_1_PWM   GPIO_NUM_15
+#define MOTOR_1_DIR_1 GPIO_NUM_12
+#define MOTOR_1_DIR_2 GPIO_NUM_13
+#define MOTOR_2_PWM   GPIO_NUM_2
+#define MOTOR_2_DIR_1 GPIO_NUM_14
+#define MOTOR_2_DIR_2 GPIO_NUM_27
