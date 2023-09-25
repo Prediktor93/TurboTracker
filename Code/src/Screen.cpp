@@ -195,3 +195,42 @@ void Screen::Test()
 	ssd1306_fadeout(&dev);
 
 }
+
+void Screen::TestText()
+{
+	ssd1306_display_text(&dev, 0, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 1, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 2, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 3, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 4, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 5, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 6, "------TEST------", 16, true);
+	ssd1306_display_text(&dev, 7, "------TEST------", 16, true);
+}
+
+//Pos[0-7] Text[0-16]
+void Screen::PrintText(char *text, int pos)
+{
+	ssd1306_display_text(&dev, pos, text,  strlen(text), false);
+}
+
+void Screen::ClearScreen(){
+	ssd1306_clear_screen(&dev, false);
+}
+
+void Screen::Countdown(){
+	ssd1306_clear_screen(&dev, false);
+	uint8_t image[24];
+	std::memset(image, 0, sizeof(image));
+	ssd1306_display_image(&dev, top, (6*8-1), image, sizeof(image));
+	ssd1306_display_image(&dev, top+1, (6*8-1), image, sizeof(image));
+	ssd1306_display_image(&dev, top+2, (6*8-1), image, sizeof(image));
+	for(int font=0x34;font>0x30;font--) {
+		std::memset(image, 0, sizeof(image));
+		ssd1306_display_image(&dev, top+1, (7*8-1), image, 8);
+		std::memcpy(image, font8x8_basic_tr[font], 8);
+		if (dev._flip) ssd1306_flip(image, 8);
+		ssd1306_display_image(&dev, top+1, (7*8-1), image, 8);
+		vTaskDelay(1000 / portTICK_PERIOD_MS);
+	}
+}

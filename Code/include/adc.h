@@ -3,15 +3,16 @@
 
 //#include <driver/adc.h>
 #include <esp_adc/adc_continuous.h>
+#include "driver/adc.h"
 
 class AdcReader{
 public:
-    AdcReader(uint32_t _adcNumber,adc_channel_t _channelAdc);
+    AdcReader();
 
     void Init();
-    uint32_t ReadValue(uint32_t samples = 5);
-
-    static bool calibrateAdc();
+    int  ReadAdc1 (adc1_channel_t channel);
+    int  ReadAdc2 (adc2_channel_t channel);
+    void ReadSensors (unsigned int* value);
 
 private:
 

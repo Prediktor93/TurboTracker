@@ -9,8 +9,12 @@ public:
 
     void Init();
     void Test();
+    void TestText();
     void PrintImuGyro (float pitch, float roll);
     void PrintImuAccel(float acX, float acY);
+    void PrintText(char *text, int pos);
+    void ClearScreen();
+    void Countdown();
 
 private:
 
