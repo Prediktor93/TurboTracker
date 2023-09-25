@@ -196,18 +196,16 @@ void app_main(void)
                 LineVal = CalcLineVal();
 
                 //TODO - Not necessary
-                /*char V[5];
+                char V[5];
                 char text2[17];
                 sprintf(V, "%04d", LineVal);
                 strcpy(text2, "      ");
                 strcat(text2, V);  
-                screen.PrintText(text2, 4);*/
+                screen.PrintText(text2, 4);
 
                 float PIDout;
                 PIDout = PID(LineVal);
                 Run(PIDout, LineVal);
-
-                //Run2(LineVal);
 
                 break;
 
@@ -219,7 +217,7 @@ void app_main(void)
 
         }
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(1));
 
     }
 }
@@ -268,9 +266,9 @@ long integral = 0;
 long integral_max = 100;
 int derivative = 0;
 int PIDmax = 100;
-float Kp = 0.4;
+float Kp = 1.2;
 float Ki = 0;
-float Kd = 10;
+float Kd = 15;
 
 float PID(int LineVal)
 {
@@ -305,8 +303,8 @@ void Run(float PIDout, int LineVal){
         motorL = 100;
         motorR = 100;
     }else{*/
-        motorL = 50 - PIDout;
-        motorR = 50 + PIDout;
+        motorL = 100 - PIDout;
+        motorR = 100 + PIDout;
     //}
 
     if(motorL > 100)    motorL = 100;
@@ -314,7 +312,7 @@ void Run(float PIDout, int LineVal){
     if(motorR > 100)    motorR = 100;
     else if(motorR < 0) motorR = 0;
 
-    /*char L[4];
+    char L[4];
     char R[4];
     char text2[17];
     sprintf(L, "%03d", motorL);
@@ -323,8 +321,8 @@ void Run(float PIDout, int LineVal){
     strcat(text2, L);  
     strcat(text2, "        "); 
     strcat(text2, R); 
-    screen.PrintText(text2, 6);*/
+    screen.PrintText(text2, 6);
     
-    motor.SetSpeed(Motor1, motorL/3); //TODO: ponerlo a tope
-    motor.SetSpeed(Motor2, motorR/3);
+    motor.SetSpeed(Motor1, motorL/2); //TODO: ponerlo a tope
+    motor.SetSpeed(Motor2, motorR/2);
 }
