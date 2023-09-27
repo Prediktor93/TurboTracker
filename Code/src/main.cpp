@@ -21,7 +21,7 @@ extern "C" void app_main(void);
 static const char* TAG = "Main";
 
 Screen screen;
-//SDCard sd;
+SDCard sd;
 Buttons bt;
 Motor motor;
 AdcReader sensors;
@@ -55,6 +55,11 @@ void Run(float PIDout, int LineVal);
 
 extern QueueHandle_t interuptQueue;
 
+static TaskHandle_t mainCoreHandle = NULL;
+static TaskHandle_t sensorCoreHandle = NULL;
+
+
+//TODO cambiar el nombre
 void LED_Control_Task(void *params)
 {
     int pinNumber, count = 0;
@@ -95,7 +100,9 @@ void Init()
 
     screen.PrintText("SCREEN........OK", 2);
 
-    //sd.Init();
+    //sd.Init();  
+    screen.PrintText("SD............OK", 1);
+
     bt.Init();
     screen.PrintText("BUTTON........OK", 3);
 
@@ -107,8 +114,8 @@ void Init()
     screen.PrintText("MOTORS........OK", 4);
 
     //Fan - TODO descomentar
-    //gpio_set_direction(FAN_PIN, GPIO_MODE_OUTPUT);
-    //gpio_set_level(FAN_PIN, 1);
+    gpio_set_direction(FAN_PIN, GPIO_MODE_OUTPUT);
+    gpio_set_level(FAN_PIN, 1);
     
     //Sensors
     sensors.Init();
@@ -126,17 +133,18 @@ void Init()
 
 }
 
-
-
-void app_main(void)
+void sensorThread(void *arg)
 {
-    printf("Starting\n");
-    
-    //Init();
+    ESP_LOGE(TAG, "Iniciando CORE B");
+    while(true){
+        sensors.ReadSensors(SensorValues);
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
 
-    //TODO - Check if SD esta OK antes de escribir
-    //sd.Open("/sdcard/LOG2.txt");
-    //sd.Write("PRUEBAAA 2\n");
+void mainThread(void *arg){
+    
+    ESP_LOGE(TAG, "Iniciando CORE A");
 
     while(true){
 
@@ -144,14 +152,14 @@ void app_main(void)
 
             case INITIAL_TEST:
                 if(!initDone){
-                    Init();
+                    //Init();
                     initDone = true;
                 }
 
                 break;
 
             case CALIBRATE_SENSORS:
-                sensors.ReadSensors(SensorValues);
+                //sensors.ReadSensors(SensorValues);
 
                 char text[17];
                 char Sw[5];
@@ -191,20 +199,34 @@ void app_main(void)
 
             case RUN: 
                 //screen.PrintText("    RUNNING     ", 3);
-                sensors.ReadSensors(SensorValues);
+                //sensors.ReadSensors(SensorValues);
                 int LineVal;
+                LineVal = 0;
+                
+                /*sd.Write("\nT:%d", esp_log_timestamp());
+                sd.Write("S:%d;%d;%d;%d;%d;%d;%d;%d ", SensorValues[0],
+                                                       SensorValues[1],
+                                                       SensorValues[2],
+                                                       SensorValues[3],
+                                                       SensorValues[4],
+                                                       SensorValues[5],
+                                                       SensorValues[6],
+                                                       SensorValues[7]);*/
+
                 LineVal = CalcLineVal();
+                //sd.Write("L:%d ", LineVal);
 
                 //TODO - Not necessary
-                char V[5];
+                /*char V[5];
                 char text2[17];
                 sprintf(V, "%04d", LineVal);
                 strcpy(text2, "      ");
                 strcat(text2, V);  
-                screen.PrintText(text2, 4);
+                screen.PrintText(text2, 4);*/
 
                 float PIDout;
-                PIDout = PID(LineVal);
+                PIDout = PID(LineVal);              
+                //sd.Write("P:%d ", PIDout);
                 Run(PIDout, LineVal);
 
                 break;
@@ -217,9 +239,24 @@ void app_main(void)
 
         }
 
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(10));
 
     }
+}
+
+void app_main(void)
+{
+    printf("Starting\n");
+     
+    Init();
+    
+    //TODO - Check if SD esta OK antes de escribir
+    //sd.Open("/sdcard/LOG2.txt");
+    //sd.Write("== INIT ==\n");
+
+    xTaskCreatePinnedToCore(mainThread, "Main_core",   4096, NULL, 10, &mainCoreHandle, 0);
+    xTaskCreatePinnedToCore(sensorThread, "Sensor_Core", 4096, NULL, 10, &sensorCoreHandle, 1);
+  
 }
 
 int CalcLineVal(){
@@ -230,7 +267,7 @@ int CalcLineVal(){
     unsigned int  SensorTotal   = 0;
     unsigned int  ReturnVal     = 0;
     
-    for(int i=0; i<NUM_SENSORS;i++){
+    /*for(int i=0; i<NUM_SENSORS;i++){
 
         if(CalibOK[i]){
 
@@ -244,6 +281,13 @@ int CalcLineVal(){
 
         SensorWeights += (unsigned long)SensorValuesNorm[i]*(i+1)*100.0;
         SensorTotal   += SensorValuesNorm[i];
+
+    }*/
+
+    for(int i=0; i<NUM_SENSORS;i++){
+
+        SensorWeights += (unsigned long)SensorValues[i]*(i+1)*100.0;
+        SensorTotal   += SensorValues[i];
 
     }
 
@@ -266,9 +310,9 @@ long integral = 0;
 long integral_max = 100;
 int derivative = 0;
 int PIDmax = 100;
-float Kp = 1.2;
-float Ki = 0;
-float Kd = 15;
+float Kp = 0.6; //0.95
+float Ki = 0; 
+float Kd = 2.5; //2.5
 
 float PID(int LineVal)
 {
@@ -306,13 +350,16 @@ void Run(float PIDout, int LineVal){
         motorL = 100 - PIDout;
         motorR = 100 + PIDout;
     //}
+       
+    //sd.Write("ML:%d ", motorL);              
+    //sd.Write("MR:%d", motorR);
 
     if(motorL > 100)    motorL = 100;
     else if(motorL < 0) motorL = 0;
     if(motorR > 100)    motorR = 100;
     else if(motorR < 0) motorR = 0;
 
-    char L[4];
+   /*char L[4];
     char R[4];
     char text2[17];
     sprintf(L, "%03d", motorL);
@@ -321,8 +368,8 @@ void Run(float PIDout, int LineVal){
     strcat(text2, L);  
     strcat(text2, "        "); 
     strcat(text2, R); 
-    screen.PrintText(text2, 6);
+    screen.PrintText(text2, 6);*/
     
-    motor.SetSpeed(Motor1, motorL/2); //TODO: ponerlo a tope
-    motor.SetSpeed(Motor2, motorR/2);
+    motor.SetSpeed(Motor1, motorL); //TODO: ponerlo a tope
+    motor.SetSpeed(Motor2, motorR);
 }

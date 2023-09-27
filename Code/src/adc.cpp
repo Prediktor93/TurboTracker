@@ -3,8 +3,11 @@
 
 #include "esp_adc_cal.h"
 #include "esp_log.h"
+#include <string.h>
 
 static const char *TAG = "ADC";
+
+int NumIter = 5;
 
 AdcReader::AdcReader()
 {
@@ -40,12 +43,31 @@ int AdcReader::ReadAdc2(adc2_channel_t channel)
 
  void AdcReader::ReadSensors (unsigned int* value)
  {
-    value[0] = ReadAdc1(SENSOR_1_CHANNEL);
-    value[1] = ReadAdc1(SENSOR_2_CHANNEL);
-    value[2] = ReadAdc1(SENSOR_3_CHANNEL);
-    value[3] = ReadAdc1(SENSOR_4_CHANNEL);
-    value[4] = ReadAdc1(SENSOR_5_CHANNEL);
-    value[5] = ReadAdc1(SENSOR_6_CHANNEL);
+
+    memset(value, 0, sizeof(value)*8);
+
+    for(uint8_t i =0; i < NumIter; i++){
+        value[0] += adc1_get_raw(SENSOR_1_CHANNEL);
+        value[1] += adc1_get_raw(SENSOR_2_CHANNEL);
+        value[2] += adc1_get_raw(SENSOR_3_CHANNEL);
+        value[3] += adc1_get_raw(SENSOR_4_CHANNEL);
+        value[4] += adc1_get_raw(SENSOR_5_CHANNEL);
+        value[5] += adc1_get_raw(SENSOR_6_CHANNEL);
+        value[6] += ReadAdc2(SENSOR_7_CHANNEL);
+        value[7] += ReadAdc2(SENSOR_8_CHANNEL);     
+    }
+
+    for(int i=0; i<NUM_SENSORS;i++){
+        value[i] /= NumIter;
+    }
+
+
+    /*value[0] = adc1_get_raw(SENSOR_1_CHANNEL);
+    value[1] = adc1_get_raw(SENSOR_2_CHANNEL);
+    value[2] = adc1_get_raw(SENSOR_3_CHANNEL);
+    value[3] = adc1_get_raw(SENSOR_4_CHANNEL);
+    value[4] = adc1_get_raw(SENSOR_5_CHANNEL);
+    value[5] = adc1_get_raw(SENSOR_6_CHANNEL);
     value[6] = ReadAdc2(SENSOR_7_CHANNEL);
-    value[7] = ReadAdc2(SENSOR_8_CHANNEL);
+    value[7] = ReadAdc2(SENSOR_8_CHANNEL);*/
  }
