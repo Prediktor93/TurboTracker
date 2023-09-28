@@ -1,5 +1,4 @@
 
-#define NUM_SENSORS 8
 
 //I2C
 #define I2C_MASTER_FREQ_HZ 400000
@@ -27,6 +26,7 @@
 #define FAN_PIN     GPIO_NUM_4
 
 //Sensors
+#define NUM_SENSORS         8
 #define SENSOR_1            GPIO_NUM_36
 #define SENSOR_2            GPIO_NUM_39
 #define SENSOR_3            GPIO_NUM_34
