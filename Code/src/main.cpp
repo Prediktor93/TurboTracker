@@ -31,11 +31,26 @@ AdcReader sensors;
 //Types 
 typedef enum {
     START = 0,
+    SET_SPEED,
     CALIBRATE_SENSORS,
     COUNTDOWN,
     RUN,
     LAST_STATE
 } state_machine_t;
+
+typedef enum {
+    _100 = 0,
+    _90  ,
+    _80,
+    _70,
+    _60,
+    _50,
+    _40
+} speed_t;
+
+float speedConversion[7] = { 1.0f, 0.9f, 0.8f, 0.7f, 0.5f, 0.5f, 0.4f};
+bool  SpeedColor     [7] = {false};
+int   SpeedCounter       = DEFAULT_SPEED_MENU_TIME;
 
 //Variables
 unsigned int SensorValues[NUM_SENSORS];
@@ -43,15 +58,18 @@ unsigned int Black[NUM_SENSORS];
 unsigned int White[NUM_SENSORS];
 unsigned int Mean[NUM_SENSORS];
 bool CalibOK[NUM_SENSORS];
+int FirstReads = 30;
 
 state_machine_t state = START;
+speed_t         speed = _100;
+float SpeedSelected = speedConversion[speed];
 
 int buttonTime = esp_log_timestamp();
 
 //Functions
 int CalcLineVal();
 float PID(int LineVal);
-void Run(float PIDout, int LineVal);
+void Run(float PIDout);
 
 extern QueueHandle_t interuptQueue;
 
@@ -74,6 +92,9 @@ void Button_Control_Task(void *params)
                 if(state == START || state == CALIBRATE_SENSORS || state == RUN){
                     screen.ClearScreen();
                     state = static_cast<state_machine_t>(static_cast<int>(state) + 1);                
+                }else if(state == SET_SPEED){
+                    SpeedCounter = DEFAULT_SPEED_MENU_TIME;
+                    speed = static_cast<speed_t>(static_cast<int>(speed) + 1);
                 }
                 buttonTime = newButtonTime;
                 //printf("GPIO %d was pressed %d times. The state is %d\n", pinNumber, count++, gpio_get_level(BUTTON_1_PIN));
@@ -99,6 +120,8 @@ void Init()
     #ifdef SD_AVAILABLE
         sd.Init();  
         screen.PrintText("SD............OK", 1);
+    #else
+        screen.PrintText("SD...........NOK", 1);
     #endif
 
     bt.Init();
@@ -123,6 +146,7 @@ void Init()
         White[i]   = 1500;
         CalibOK[i] = false;
     }
+    memset(SensorValues, 0, sizeof(SensorValues));
 
     screen.PrintText("SENSORS.......OK", 5);
 
@@ -149,39 +173,78 @@ void mainThread(void *arg){
         switch(state){
 
             case START:
+            
+                for(int i=0; i<NUM_SENSORS;i++){
+                    printf("%d\t", SensorValues[i]);
+                }
+                    printf("\n");
+
+                break;
+
+            case SET_SPEED:
+
+                //SpeedSelected = { false, false, false, false, false, false, false};
+                memset(SpeedColor, 0, sizeof(SpeedColor));
+                SpeedColor[speed] = true;
+                SpeedSelected = speedConversion[speed];
+
+                screen.PrintText("  - SET SPEED - ", 0);
+                screen.PrintTextColor("      100%      ", 1, SpeedColor[0]);              
+                screen.PrintTextColor("       90%      ", 2, SpeedColor[1]);              
+                screen.PrintTextColor("       80%      ", 3, SpeedColor[2]);               
+                screen.PrintTextColor("       70%      ", 4, SpeedColor[3]);                
+                screen.PrintTextColor("       60%      ", 5, SpeedColor[4]);               
+                screen.PrintTextColor("       50%      ", 6, SpeedColor[5]);             
+                screen.PrintTextColor("       40%      ", 7, SpeedColor[6]);
+
+                SpeedCounter--;
+                if(SpeedCounter < 0){
+                    screen.ClearScreen();
+                    SpeedCounter = DEFAULT_SPEED_MENU_TIME;
+                    state = CALIBRATE_SENSORS;
+                }                 
                 break;
 
             case CALIBRATE_SENSORS:
 
-                char text[17];
-                char Sw[5];
-                char Sb[5];
-                char Num[2];
+                if(FirstReads > 0){
+                    FirstReads--;
+                    screen.PrintText("     WAITING    ", 4);
+                }else{
+                    char text[17];
+                    char Sw[5];
+                    char Sb[5];
+                    char Num[2];
 
-                for(int i=0; i<NUM_SENSORS;i++){
-                    if(SensorValues[i] > Black[i]) Black[i] = SensorValues[i];
-                    if(SensorValues[i] < White[i]) White[i] = SensorValues[i];
-                    if(Black[i] > 2500 && White[i] < 1500){
-                         CalibOK[i] = true;
-                         Mean[i] = (Black[i] + White[i]) / 2.0;
+                    for(int i=0; i<NUM_SENSORS;i++){
+                        if(SensorValues[i] > Black[i]) Black[i] = SensorValues[i];
+                        if(SensorValues[i] < White[i] && SensorValues[i] != 0 ) White[i] = SensorValues[i];
+                        if(Black[i] > 2500 && White[i] < 1500){
+                            CalibOK[i] = true;
+                            Mean[i] = (Black[i] + White[i]) / 2.0;
+                        }
+                        
+                        sprintf(Sw, "%04d", White[i]);
+                        sprintf(Sb, "%04d", Black[i]);
+                        sprintf(Num, "%01d", i+1);
+                        strcpy(text, "S"); strcat(text, Num); strcat(text, " ");               
+                        strcat(text, Sw);              
+                        strcat(text, " ");           
+                        strcat(text, Sb);
+                        if(CalibOK[i]) strcat(text, " OK");
+                        else           strcat(text, " --");
+                        screen.PrintText(text, i);
+
+                        printf("%d\t", SensorValues[i]);
                     }
+                        printf("\n");
                     
-                    sprintf(Sw, "%04d", White[i]);
-                    sprintf(Sb, "%04d", Black[i]);
-                    sprintf(Num, "%01d", i+1);
-                    strcpy(text, "S"); strcat(text, Num); strcat(text, " ");               
-                    strcat(text, Sw);              
-                    strcat(text, " ");           
-                    strcat(text, Sb);
-                    if(CalibOK[i]) strcat(text, " OK");
-                    else           strcat(text, " --");
-                    screen.PrintText(text, i);
+                    //printf("%lu\tSV :%d, Cal:%d\n", esp_log_timestamp(), SensorValues[7],White[7]);
                 }
-
                 break;
 
             case COUNTDOWN: 
-                //screen.Countdown(); -- TODO uncomment
+                //screen.Countdown(); //-- TODO uncomment
                 screen.ClearScreen();
                 state=RUN;
             break;
@@ -215,8 +278,9 @@ void mainThread(void *arg){
                     sd.Write("P:%d ", PIDout);
                 #endif
 
-                Run(PIDout, LineVal);
-
+                Run(PIDout);
+                
+                printf("%lu\t%d\n", esp_log_timestamp(), LineVal);
                 break;
 
             case LAST_STATE: 
@@ -237,8 +301,7 @@ void app_main(void)
     printf("Starting\n");
      
     Init();
-    
-    //TODO - Check if SD esta OK antes de escribir
+
     #ifdef SD_AVAILABLE
         sd.Open("/sdcard/LOG2.txt");
         sd.Write("== INIT ==\n");
@@ -251,42 +314,36 @@ void app_main(void)
 
 int CalcLineVal(){
 
-    unsigned int SensorValuesNorm[NUM_SENSORS];
+    unsigned int SensorValuesNorm[NUM_SENSORS] = {0};
     bool LineFound = false;
-    unsigned long SensorWeights = 0;
+    unsigned int SensorWeights = 0;
     unsigned int  SensorTotal   = 0;
-    unsigned int  ReturnVal     = 0;
+    int  ReturnVal = 0;
     
-    /*for(int i=0; i<NUM_SENSORS;i++){
-
-        if(CalibOK[i]){
-
-            if(SensorValues[i] < White[i]) SensorValues[i] = White[i];
-            if(SensorValues[i] > Black[i]) SensorValues[i] = Black[i];
-
-            SensorValuesNorm[i] = (SensorValues[i]-White[i]) * 4095.0 / Black[i];
-            if(SensorValuesNorm[i] >= Mean[i]) LineFound = true;
-
-        } else SensorValuesNorm[i] = 0;
-
-        SensorWeights += (unsigned long)SensorValuesNorm[i]*(i+1)*100.0;
-        SensorTotal   += SensorValuesNorm[i];
-
-    }*/
+    //printf("======\n");
 
     for(int i=0; i<NUM_SENSORS;i++){
 
-        SensorWeights += (unsigned long)SensorValues[i]*(i+1)*100.0;
-        SensorTotal   += SensorValues[i];
+        SensorValuesNorm[i] = SensorValues[i];
+        if(SensorValues[i] < White[i]) SensorValuesNorm[i] = White[i];
+        if(SensorValues[i] > Black[i]) SensorValuesNorm[i] = Black[i];
+
+        SensorValuesNorm[i] = (SensorValuesNorm[i]-White[i]) * (4095.0f / (Black[i] - White[i]));
+        if(SensorValuesNorm[i] >= Mean[i]) LineFound = true;
+
+        SensorWeights += SensorValuesNorm[i]*(i+1)*100.0;
+        SensorTotal   += SensorValuesNorm[i];
 
     }
 
+    if(SensorTotal == 0) SensorTotal = 1;
     ReturnVal = SensorWeights / SensorTotal;
     ReturnVal = ReturnVal - (NUM_SENSORS+1) * 100/2;
 
-    /*if(!LineFound){
-        ReturnVal = 300; //Turn left
-    }*/
+    //In case of losing the line
+    if(!LineFound){
+        ReturnVal = -300; //Turn right
+    }
 
     return ReturnVal; //Returns a value between -350, 350 with the line position
 
@@ -302,8 +359,7 @@ float Kd = 2.5; //2.5
 float PID(int LineVal)
 {
   proportional = LineVal;
-
-  derivative = proportional - proportional_last;
+  derivative   = proportional - proportional_last;
   proportional_last = proportional;
 
   return (float)(proportional * Kp + derivative * Kd);
@@ -311,23 +367,24 @@ float PID(int LineVal)
 
 
 
-void Run(float PIDout, int LineVal){
+void Run(float PIDout){
     int motorL, motorR = 0;
 
-    motorL = 100 - PIDout;
-    motorR = 100 + PIDout;
+    motorL = 130 - PIDout;
+    motorR = 130 + PIDout;
        
     #ifdef SD_AVAILABLE
         sd.Write("ML:%d ", motorL);              
         sd.Write("MR:%d", motorR);
     #endif
 
-    if(motorL > 100)    motorL = 100;
+    if(motorL > MOTOR_MAX_SPEED)    motorL = MOTOR_MAX_SPEED;
     else if(motorL < 0) motorL = 0;
-    if(motorR > 100)    motorR = 100;
+    if(motorR > MOTOR_MAX_SPEED)    motorR = MOTOR_MAX_SPEED;
     else if(motorR < 0) motorR = 0;
 
-   /*char L[4];
+    //Print motor information
+    /*char L[4];
     char R[4];
     char text2[17];
     sprintf(L, "%03d", motorL);
@@ -338,6 +395,6 @@ void Run(float PIDout, int LineVal){
     strcat(text2, R); 
     screen.PrintText(text2, 6);*/
     
-    motor.SetSpeed(Motor1, motorL);
-    motor.SetSpeed(Motor2, motorR);
+    motor.SetSpeed(Motor1, motorL*SpeedSelected);
+    motor.SetSpeed(Motor2, motorR*SpeedSelected);
 }

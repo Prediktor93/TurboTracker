@@ -214,6 +214,11 @@ void Screen::PrintText(char *text, int pos)
 	ssd1306_display_text(&dev, pos, text,  strlen(text), false);
 }
 
+void Screen::PrintTextColor(char *text, int pos, bool color)
+{
+	ssd1306_display_text(&dev, pos, text,  strlen(text), color);
+}
+
 void Screen::ClearScreen(){
 	ssd1306_clear_screen(&dev, false);
 }
@@ -225,12 +230,12 @@ void Screen::Countdown(){
 	ssd1306_display_image(&dev, top, (6*8-1), image, sizeof(image));
 	ssd1306_display_image(&dev, top+1, (6*8-1), image, sizeof(image));
 	ssd1306_display_image(&dev, top+2, (6*8-1), image, sizeof(image));
-	for(int font=0x34;font>0x30;font--) {
+	for(int font=0x35;font>0x30;font--) {
 		std::memset(image, 0, sizeof(image));
 		ssd1306_display_image(&dev, top+1, (7*8-1), image, 8);
 		std::memcpy(image, font8x8_basic_tr[font], 8);
 		if (dev._flip) ssd1306_flip(image, 8);
 		ssd1306_display_image(&dev, top+1, (7*8-1), image, 8);
-		vTaskDelay(1000 / portTICK_PERIOD_MS);
+		vTaskDelay(950 / portTICK_PERIOD_MS);
 	}
 }

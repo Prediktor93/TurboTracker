@@ -13,6 +13,7 @@ public:
     void PrintImuGyro (float pitch, float roll);
     void PrintImuAccel(float acX, float acY);
     void PrintText(char *text, int pos);
+    void PrintTextColor(char *text, int pos, bool color);
     void ClearScreen();
     void Countdown();
 

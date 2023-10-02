@@ -66,7 +66,7 @@ void Motor::Init()
 
     //Configure Motor PWM 1
     mcpwm_config_t pwm_conf;
-    pwm_conf.frequency    = 10000;
+    pwm_conf.frequency    = 1000;
     pwm_conf.cmpr_a       = 0;
     pwm_conf.cmpr_b       = 0;
     pwm_conf.counter_mode = MCPWM_UP_COUNTER;
@@ -96,7 +96,7 @@ void Motor::Init()
 void Motor::SetSpeed(Motor_num motor, int speed){
 
     //mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, abs(speed));
-    if(speed >= -100 && speed <= 100){
+    if(speed >= -MOTOR_MAX_SPEED && speed <= MOTOR_MAX_SPEED){
         //(speed >= 0) ? DirectionForward(motor) : DirectionBackward(motor);
         if(motor == Motor1)
             mcpwm_set_duty(Motor1_conf.unit, Motor1_conf.timer, Motor1_conf.op, abs(speed));
