@@ -13,6 +13,8 @@
 #include "adc.h"
 #include <cstring>
 
+#include <esp_task_wdt.h>
+
 //#define SD_AVAILABLE
 
 extern "C" void app_main(void);
@@ -174,10 +176,10 @@ void mainThread(void *arg){
 
             case START:
             
-                for(int i=0; i<NUM_SENSORS;i++){
+                /*for(int i=0; i<NUM_SENSORS;i++){
                     printf("%d\t", SensorValues[i]);
                 }
-                    printf("\n");
+                    printf("\n");*/
 
                 break;
 
@@ -235,9 +237,9 @@ void mainThread(void *arg){
                         else           strcat(text, " --");
                         screen.PrintText(text, i);
 
-                        printf("%d\t", SensorValues[i]);
+                        //printf("%d\t", SensorValues[i]);
                     }
-                        printf("\n");
+                        //printf("\n");
                     
                     //printf("%lu\tSV :%d, Cal:%d\n", esp_log_timestamp(), SensorValues[7],White[7]);
                 }
@@ -280,7 +282,7 @@ void mainThread(void *arg){
 
                 Run(PIDout);
                 
-                printf("%lu\t%d\n", esp_log_timestamp(), LineVal);
+                //printf("%lu\t%d\n", esp_log_timestamp(), LineVal);
                 break;
 
             case LAST_STATE: 
@@ -291,7 +293,7 @@ void mainThread(void *arg){
 
         }
 
-        vTaskDelay(pdMS_TO_TICKS(10));
+        //vTaskDelay(pdMS_TO_TICKS(10));
 
     }
 }
@@ -302,6 +304,13 @@ void app_main(void)
      
     Init();
 
+    esp_task_wdt_config_t wdt_config;
+    wdt_config.timeout_ms = 30;
+    wdt_config.trigger_panic = false;
+    wdt_config.idle_core_mask = 1 << 0;
+    
+    esp_task_wdt_init(&wdt_config);
+
     #ifdef SD_AVAILABLE
         sd.Open("/sdcard/LOG2.txt");
         sd.Write("== INIT ==\n");
@@ -310,6 +319,7 @@ void app_main(void)
     xTaskCreatePinnedToCore(mainThread, "Main_core",   4096, NULL, 10, &mainCoreHandle, 0);
     xTaskCreatePinnedToCore(sensorThread, "Sensor_Core", 4096, NULL, 10, &sensorCoreHandle, 1);
   
+
 }
 
 int CalcLineVal(){
