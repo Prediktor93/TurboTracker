@@ -32,6 +32,7 @@ AdcReader sensors;
 typedef enum {
     START = 0,
     SET_SPEED,
+    SET_DIRECTION,
     CALIBRATE_SENSORS,
     COUNTDOWN,
     RUN,
@@ -48,9 +49,17 @@ typedef enum {
     _40
 } speed_t;
 
+typedef enum {
+    _right = 0,
+    _left
+} dir_t;
+
 float speedConversion[7] = { 1.0f, 0.9f, 0.8f, 0.7f, 0.5f, 0.5f, 0.4f};
+float dirConversion[2]   = { -1, 1};
 bool  SpeedColor     [7] = {false};
+bool  DirColor       [2] = {false};
 int   SpeedCounter       = DEFAULT_SPEED_MENU_TIME;
+int   DirCounter         = DEFAULT_DIR_MENU_TIME;
 
 //Variables
 unsigned int SensorValues[NUM_SENSORS];
@@ -62,7 +71,9 @@ int FirstReads = 30;
 
 state_machine_t state = START;
 speed_t         speed = _100;
+dir_t           dir   = _left;
 float SpeedSelected = speedConversion[speed];
+int   DirSelected   = dirConversion[dir];
 
 int buttonTime = esp_log_timestamp();
 
@@ -95,6 +106,9 @@ void Button_Control_Task(void *params)
                 }else if(state == SET_SPEED){
                     SpeedCounter = DEFAULT_SPEED_MENU_TIME;
                     speed = static_cast<speed_t>(static_cast<int>(speed) + 1);
+                }else if(state == SET_DIRECTION){
+                    DirCounter = DEFAULT_DIR_MENU_TIME;
+                    dir = static_cast<dir_t>(static_cast<int>(dir) + 1);
                 }
                 buttonTime = newButtonTime;
                 printf("GPIO %d was pressed %d times. The state is %d\n", pinNumber, count++, gpio_get_level(BUTTON_1_PIN));
@@ -173,12 +187,6 @@ void mainThread(void *arg){
         switch(state){
 
             case START:
-                /*sensors.GetSensorData(SensorValues);
-                for(int i=0; i<NUM_SENSORS;i++){
-                    printf("%d\t", SensorValues[i]);
-                }
-                    printf("\n");*/
-
                 break;
 
             case SET_SPEED:
@@ -200,12 +208,32 @@ void mainThread(void *arg){
                 if(SpeedCounter < 0){
                     screen.ClearScreen();
                     SpeedCounter = DEFAULT_SPEED_MENU_TIME;
-                    state = CALIBRATE_SENSORS;
+                    state = SET_DIRECTION;
                 }                 
+                break;
+
+            case SET_DIRECTION:
+
+                memset(DirColor, 0, sizeof(DirColor));
+                DirColor[dir] = true;
+                DirSelected = dirConversion[dir];
+
+                screen.PrintText("   - SET DIR -  ", 1);          
+                screen.PrintTextColor("      RIGHT     ", 2, DirColor[0]);   
+                screen.PrintTextColor("      LEFT      ", 3, DirColor[1]);     
+
+                DirCounter--;
+                if(DirCounter < 0){
+                    screen.ClearScreen();
+                    DirCounter = DEFAULT_DIR_MENU_TIME;
+                    state = CALIBRATE_SENSORS;
+                }    
+
                 break;
 
             case CALIBRATE_SENSORS:
 
+                printf("%d\n", DirSelected);
                 sensors.GetSensorData(SensorValues);
                 if(FirstReads > 0){
                     FirstReads--;
@@ -341,9 +369,9 @@ int CalcLineVal(){
     ReturnVal = SensorWeights / SensorTotal;
     ReturnVal = ReturnVal - (NUM_SENSORS+1) * 100/2;
 
-    //In case of losing the line
+    //In case of losing the line, turn to configured side
     if(!LineFound){
-        ReturnVal = -300; //Turn right
+        ReturnVal = 300 * DirSelected;
     }
 
     return ReturnVal; //Returns a value between -350, 350 with the line position
@@ -355,7 +383,7 @@ int proportional = 0;
 int proportional_last = 0;
 int derivative = 0;
 float Kp = 0.6; //0.95
-float Kd = 2.5; //2.5
+float Kd = 4.5; //2.5
 
 float PID(int LineVal)
 {

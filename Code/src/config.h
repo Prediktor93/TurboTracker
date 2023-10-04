@@ -48,3 +48,4 @@
 
 //Menu
 #define DEFAULT_SPEED_MENU_TIME 15
+#define DEFAULT_DIR_MENU_TIME   25
