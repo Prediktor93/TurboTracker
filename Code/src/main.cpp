@@ -97,7 +97,7 @@ void Button_Control_Task(void *params)
                     speed = static_cast<speed_t>(static_cast<int>(speed) + 1);
                 }
                 buttonTime = newButtonTime;
-                //printf("GPIO %d was pressed %d times. The state is %d\n", pinNumber, count++, gpio_get_level(BUTTON_1_PIN));
+                printf("GPIO %d was pressed %d times. The state is %d\n", pinNumber, count++, gpio_get_level(BUTTON_1_PIN));
             }
         }
     }
@@ -159,7 +159,7 @@ void sensorThread(void *arg)
 {
     ESP_LOGE(TAG, "Iniciando CORE B");
     while(true){
-        sensors.ReadSensors(SensorValues);
+        sensors.ReadSensors();
         vTaskDelay(pdMS_TO_TICKS(10));
     }
 }
@@ -173,8 +173,8 @@ void mainThread(void *arg){
         switch(state){
 
             case START:
-            
-                /*for(int i=0; i<NUM_SENSORS;i++){
+                /*sensors.GetSensorData(SensorValues);
+                for(int i=0; i<NUM_SENSORS;i++){
                     printf("%d\t", SensorValues[i]);
                 }
                     printf("\n");*/
@@ -183,7 +183,6 @@ void mainThread(void *arg){
 
             case SET_SPEED:
 
-                //SpeedSelected = { false, false, false, false, false, false, false};
                 memset(SpeedColor, 0, sizeof(SpeedColor));
                 SpeedColor[speed] = true;
                 SpeedSelected = speedConversion[speed];
@@ -207,6 +206,7 @@ void mainThread(void *arg){
 
             case CALIBRATE_SENSORS:
 
+                sensors.GetSensorData(SensorValues);
                 if(FirstReads > 0){
                     FirstReads--;
                     screen.PrintText("     WAITING    ", 4);
@@ -252,6 +252,7 @@ void mainThread(void *arg){
             case RUN: 
                 //screen.PrintText("    RUNNING     ", 3);
 
+                sensors.GetSensorData(SensorValues);
                 int LineVal;
                 LineVal = 0;
                 
@@ -308,8 +309,8 @@ void app_main(void)
         sd.Write("== INIT ==\n");
     #endif
 
-    xTaskCreatePinnedToCore(sensorThread, "Sensor_Core", 4096, NULL, 9, &sensorCoreHandle, 1);
-    xTaskCreatePinnedToCore(mainThread, "Main_core",   4096, NULL, 10, &mainCoreHandle, 0);
+    xTaskCreatePinnedToCore(sensorThread, "Sensor_Core", 4096, NULL, 10, &sensorCoreHandle, 1);
+    xTaskCreatePinnedToCore(mainThread, "Main_core",   4096, NULL, 9, &mainCoreHandle, 0);
   
 
 }
@@ -321,8 +322,6 @@ int CalcLineVal(){
     unsigned int SensorWeights = 0;
     unsigned int  SensorTotal   = 0;
     int  ReturnVal = 0;
-    
-    //printf("======\n");
 
     for(int i=0; i<NUM_SENSORS;i++){
 
