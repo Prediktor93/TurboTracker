@@ -19,7 +19,7 @@ void Motor::Init()
     motor1_1.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&motor1_1);
 
-    gpio_set_level(MOTOR_1_DIR_1, 0);
+    gpio_set_level(MOTOR_1_DIR_1, 1);
 
     gpio_config_t motor1_2;
     motor1_2.intr_type = GPIO_INTR_DISABLE;
@@ -29,7 +29,7 @@ void Motor::Init()
     motor1_2.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&motor1_2);
 
-    gpio_set_level(MOTOR_1_DIR_2, 1);
+    gpio_set_level(MOTOR_1_DIR_2, 0);
 
     //Configure Motor 2 GPIO
     gpio_config_t motor2_1;
@@ -40,7 +40,7 @@ void Motor::Init()
     motor2_1.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&motor2_1);
 
-    gpio_set_level(MOTOR_2_DIR_1, 1);
+    gpio_set_level(MOTOR_2_DIR_1, 0);
 
     gpio_config_t motor2_2;
     motor2_2.intr_type = GPIO_INTR_DISABLE;
@@ -50,7 +50,7 @@ void Motor::Init()
     motor2_2.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&motor2_2);
 
-    gpio_set_level(MOTOR_2_DIR_2, 0);
+    gpio_set_level(MOTOR_2_DIR_2, 1);
 
     //gpio_set_direction(MOTOR_1_DIR_1, GPIO_MODE_OUTPUT);
     //gpio_set_direction(MOTOR_1_DIR_2, GPIO_MODE_OUTPUT);
@@ -128,8 +128,8 @@ void Motor::Brake(Motor_num motor){
 void Motor::DirectionForward(Motor_num motor) {
     // Changes the GPIOs level as to change the direction the motor will spin, so it goes forwards
     if(motor == Motor1){
-        gpio_set_level(Motor1_conf.a1, 0);
-        gpio_set_level(Motor1_conf.a2, 1);
+        gpio_set_level(Motor1_conf.a1, 1);
+        gpio_set_level(Motor1_conf.a2, 0);
     }else{                
         gpio_set_level(Motor2_conf.a1, 0);
         gpio_set_level(Motor2_conf.a2, 1);

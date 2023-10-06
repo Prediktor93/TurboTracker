@@ -71,7 +71,7 @@ int FirstReads = 30;
 
 state_machine_t state = START;
 speed_t         speed = _100;
-dir_t           dir   = _left;
+dir_t           dir   = _right;
 float SpeedSelected = speedConversion[speed];
 int   DirSelected   = dirConversion[dir];
 
@@ -382,8 +382,8 @@ int CalcLineVal(){
 int proportional = 0;
 int proportional_last = 0;
 int derivative = 0;
-float Kp = 0.6; //0.95
-float Kd = 4.5; //2.5
+float Kp = 0.5; //0.95 //0.5
+float Kd = 2.25; //2.5  //2.25
 
 float PID(int LineVal)
 {
@@ -399,8 +399,8 @@ float PID(int LineVal)
 void Run(float PIDout){
     int motorL, motorR = 0;
 
-    motorL = 130 - PIDout;
-    motorR = 130 + PIDout;
+    motorL = 150 - PIDout;
+    motorR = 150 + PIDout;
        
     #ifdef SD_AVAILABLE
         sd.Write("ML:%d ", motorL);              
